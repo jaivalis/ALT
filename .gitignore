@@ -1,3 +1,5 @@
+*.IML
+*.idea
 
 file.aligned
 file.de
