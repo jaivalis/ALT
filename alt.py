@@ -2,16 +2,14 @@ import sys
 from collections import Counter
 
 def extract_phrases(e_str, f_str, alignments, max_length):
-	ret = set()  # ret should contain the indexes only, not the phrases
+	ret = Counter()
 	e_tokens = e_str.strip().split()
 	f_tokens = f_str.strip().split()
 
 	word_alignments = extract_word_pairs(e_tokens, f_tokens, alignments)
-	print word_alignments
 
-	extract_phrase_alignments(len(e_tokens), len(f_tokens), word_alignments, max_length)
+	# extract_phrase_alignments(len(e_tokens), len(f_tokens), word_alignments, max_length)
 
-	print alignments
 	for e_start in range(0, len(e_tokens)):
 		for e_end in range(e_start, len(e_tokens)):
 
@@ -28,9 +26,7 @@ def extract_phrases(e_str, f_str, alignments, max_length):
 
 			phrase_alignment = get_phrase_alignment(e_start, e_end, f_start, f_end, alignments, e_tokens, f_tokens)
 
-			print phrase_alignment
-
-	print ret
+			ret.update(phrase_alignment)
 	return ret
 
 def get_phrase_alignment(e_start, e_end, f_start, f_end, alignments, e_tokens, f_tokens):
@@ -61,15 +57,36 @@ def get_phrase_alignment(e_start, e_end, f_start, f_end, alignments, e_tokens, f
 
 		if f_s in f_aligned:  # until f_s aligned
 			break
-		print f_s
 		f_s -= 1
 
 	return ret
 
-def extract_phrase_alignments(e_word_count, f_word_count, word_alignments, max_length=100):
-	ret = set()
+def generate_output(phrase_counter, outfile=None):
+	""" Generates the formatted output given the phrase counter as asked:
 
-	return ret
+			f ||| e ||| freq(f) freq(e) freq(f, e)
+	FIXME
+	"""
+
+	if outfile is None:
+		out = sys.stdout
+	else:
+		out = open(outfile, 'w')
+	try:
+		print phrase_counter
+		for f, e in phrase_counter:
+			count = 0
+
+			freq_f = -1
+			freq_e = -1
+			freq_fe = -1
+
+			string = "{0} ||| {1} {2} {3}".format(f, e, freq_f, freq_e, freq_fe)
+			out.write(string + '\n')
+
+	finally:
+		if outfile is not None:
+			out.close()
 
 
 def extract_word_pairs(e_tokens, f_tokens, alignments):
@@ -101,13 +118,24 @@ def phrase_extraction(e_path, f_path, aligned_path, max_length):
 
 	sentense_count = -1
 
+	all_phrases_counter = Counter()
+
+
 	with open(e_path, 'r') as e_f, open(f_path, 'r') as f_f, open(aligned_path, 'r') as aligned_f:
+		sample_size = 10
 		for e_str, f_str, align_str in zip(e_f, f_f, aligned_f):
 
 			alignments = parse_alignments(align_str)
 
-			extract_phrases(e_str, f_str, alignments, max_length)
-			break;
+			phrases_counter = extract_phrases(e_str, f_str, alignments, max_length)
+			all_phrases_counter.update(phrases_counter)
+
+			generate_output(all_phrases_counter)
+
+			sample_size -= 1
+			raw_input("bla: ")
+			if sample_size == 0:
+				break;
 
 def main():
 
