@@ -3,7 +3,9 @@ from collections import Counter
 
 
 def extract_phrases(e_str, f_str, alignments, max_length):
-    ret = Counter()
+    aligned_phrases = Counter()
+    e_phrases = Counter()
+    f_phrases = Counter()
     e_tokens = e_str.strip().split()
     f_tokens = f_str.strip().split()
 
@@ -21,10 +23,17 @@ def extract_phrases(e_str, f_str, alignments, max_length):
                     f_start = min(f, f_start)
                     f_end = max(f, f_end)
 
-            phrase_alignment = get_phrase_alignment(e_start, e_end, f_start, f_end, alignments, e_tokens, f_tokens)
-
-            ret.update(phrase_alignment)
-    return ret
+            tmp = get_phrase_alignment(e_start, e_end, f_start, f_end, alignments, e_tokens, f_tokens)
+            print tmp
+            print type(tmp)
+            phrase_alignment = tmp[0]
+            e_phrase = tmp[1]
+            f_phrase = tmp[2]
+            
+            aligned_phrases.update(phrase_alignment)
+            e_phrases.update(e_phrase)
+            f_phrases.update(f_phrase)
+    return (aligned_phrases, e_phrases, f_phrases)
 
 
 def get_phrase_alignment(e_start, e_end, f_start, f_end, alignments, e_tokens, f_tokens):
@@ -35,7 +44,9 @@ def get_phrase_alignment(e_start, e_end, f_start, f_end, alignments, e_tokens, f
         if (f_start <= f <= f_end) and (e < e_start or e > e_end):
             return {}
 
-    ret = set()
+    aligned_phrases = set()
+    e_phrases       = set()
+    f_phrases       = set()
 
     f_aligned = [j for _, j in alignments]
 
@@ -47,7 +58,9 @@ def get_phrase_alignment(e_start, e_end, f_start, f_end, alignments, e_tokens, f
             e_phrase = ' '.join(e_tokens[e_start:e_end+1])
             f_phrase = ' '.join(f_tokens[f_s:f_e+1])
 
-            ret.add((e_phrase, f_phrase))
+            aligned_phrases.add((e_phrase, f_phrase))
+            e_phrases.add(e_phrase)
+            f_phrases.add(f_phrase)
 
             f_e += 1
             if f_e in f_aligned or f_e == len(f_tokens):  # until f_e aligned
@@ -55,10 +68,10 @@ def get_phrase_alignment(e_start, e_end, f_start, f_end, alignments, e_tokens, f
         f_s -= 1
         if f_s in f_aligned or f_s < 0:  # until f_s aligned
             break
-    return ret
+    return (aligned_phrases, e_phrases, f_phrases)
 
 
-def generate_output(phrase_counter, outfile=None):
+def generate_output(phrase_counter, e_phrases, f_phrases, outfile=None):
     """ Generates the formatted output given the phrase counter as asked:
 
             f ||| e ||| freq(f) freq(e) freq(f, e)
@@ -70,13 +83,15 @@ def generate_output(phrase_counter, outfile=None):
     else:
         out = open(outfile, 'w')
     try:
-        phrases_count = sum(phrase_counter.values())
+        e_phrases_count   = sum(e_phrases.values())
+        f_phrases_count   = sum(f_phrases.values())
+        all_phrases_count = sum(phrase_counter.values())
         for tupl, count in phrase_counter.iteritems():
             e = tupl[0]
             f = tupl[1]
 
-            freq_f = float(count) / phrases_count
-            freq_e = -1
+            freq_f = float(count) / f_phrases_count
+            freq_e = float(count) / e_phrases_count
             freq_fe = -1
 
             string = "{0} ||| {1} {2:.6f} {3:.6f}".format(f, e, freq_f, freq_e, freq_fe)
@@ -123,14 +138,19 @@ def phrase_extraction(e_path, f_path, aligned_path, max_length):
 
             alignments = parse_alignments(align_str)
 
-            phrases_counter = extract_phrases(e_str, f_str, alignments, max_length)
+            tmp = extract_phrases(e_str, f_str, alignments, max_length)
+            phrases_counter = tmp[0]
+            e_phrases_counter = tmp[1]
+            f_phrases_counter = tmp[2]
             all_phrases_counter.update(phrases_counter)
+            e_phrases.update(e_phrases_counter)
+            f_phrases.update(f_phrases_counter)
 
             sample_size -= 1
             if sample_size == 0:
                 break
     print 'Phrases extracted'
-    generate_output(all_phrases_counter, 'file.out')
+    generate_output(all_phrases_counter, e_phrases, f_phrases, 'file.out')
 
 
 def main():
