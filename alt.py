@@ -44,9 +44,9 @@ def get_phrase_alignment(e_start, e_end, f_start, f_end, alignments, e_tokens, f
         if (f_start <= f <= f_end) and (e < e_start or e > e_end):
             return None
 
-    aligned_phrases = set()
-    e_phrases = set()
-    f_phrases = set()
+    aligned_phrases = dict()
+    e_phrases = dict()
+    f_phrases = dict()
 
     f_aligned = [j for _, j in alignments]
 
@@ -57,11 +57,24 @@ def get_phrase_alignment(e_start, e_end, f_start, f_end, alignments, e_tokens, f
             # add phrase pair (e_start, e_end, f_start, f_end) to returned
             e_phrase = ' '.join(e_tokens[e_start:e_end+1])
             f_phrase = ' '.join(f_tokens[f_s:f_e+1])
+            
+            pair = e_phrase + '|||' + f_phrase
+            
+            if pair in aligned_phrases:
+                aligned_phrases[pair] += 1
+            else:
+                aligned_phrases[pair] = 1
 
-            aligned_phrases.add((e_phrase, f_phrase))
-            e_phrases.add(e_phrase)
-            f_phrases.add(f_phrase)
-
+            if e_phrase in e_phrases:
+                e_phrases[e_phrase] += 1
+            else:
+                e_phrases[e_phrase] = 1
+                
+            if f_phrase in f_phrases:
+                f_phrases[f_phrase] += 1
+            else:
+                f_phrases[f_phrase] = 1
+                
             f_e += 1
             if f_e in f_aligned or f_e == len(f_tokens):  # until f_e aligned
                 break
@@ -86,15 +99,24 @@ def generate_output(phrase_counter, e_phrases, f_phrases, outfile=None):
         e_phrases_count = sum(e_phrases.values())
         f_phrases_count = sum(f_phrases.values())
         all_phrases_count = sum(phrase_counter.values())
-        for tupl, count in phrase_counter.iteritems():
-            e = tupl[0]
-            f = tupl[1]
+        for pair in phrase_counter:
+            tok = pair.split('|||')
+            e = tok[0]
+            f = tok[1]
+            
 
-            freq_f = float(count) / f_phrases_count
-            freq_e = float(count) / e_phrases_count
-            freq_fe = -1
+            freq_f = f_phrases[f]
+            freq_e = e_phrases[e]
+            freq_fe = phrase_counter[pair]
+            prob_e = float(freq_e) / e_phrases_count
+            prob_f = float(freq_f) / f_phrases_count
+            
+            cond_f_e = float(freq_fe) / freq_f
+            cond_e_f = float(freq_fe) / freq_e
+            #l_e_f = 
+            #l_f_e = 
 
-            string = "{0} ||| {1} {2:.6f} {3:.6f}".format(f, e, freq_f, freq_e, freq_fe)
+            string = "{0} ||| {1} {2:.4f} {3:.4f} {4:} {5:} {6:}".format(f, e, cond_f_e, cond_e_f, freq_f, freq_e, freq_fe)
             out.write(string + '\n')
 
     finally:
