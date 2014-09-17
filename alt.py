@@ -47,8 +47,6 @@ def get_phrase_alignment(e_start, e_end, f_start, f_end, alignments, e_tokens, f
             e_phrase = ' '.join(e_tokens[e_start:e_end+1])
             f_phrase = ' '.join(f_tokens[f_s:f_e+1])
 
-            if f_phrase == '':
-                print f_phrase
             ret.add((e_phrase, f_phrase))
 
             f_e += 1
@@ -72,15 +70,16 @@ def generate_output(phrase_counter, outfile=None):
     else:
         out = open(outfile, 'w')
     try:
-        print phrase_counter
-        for f, e in phrase_counter:
-            count = 0
+        phrases_count = sum(phrase_counter.values())
+        for tupl, count in phrase_counter.iteritems():
+            e = tupl[0]
+            f = tupl[1]
 
-            freq_f = -1
+            freq_f = float(count) / phrases_count
             freq_e = -1
             freq_fe = -1
 
-            string = "{0} ||| {1} {2} {3}".format(f, e, freq_f, freq_e, freq_fe)
+            string = "{0} ||| {1} {2:.6f} {3:.6f}".format(f, e, freq_f, freq_e, freq_fe)
             out.write(string + '\n')
 
     finally:
@@ -111,9 +110,11 @@ def parse_alignments(alignments_str):
 
 def phrase_extraction(e_path, f_path, aligned_path, max_length):
     # alignments_for_phrases = dict()
-    # phrase_pairs = Counter()
-    # e_phrases = Counter()
-    # f_phrases = Counter()
+
+    phrase_pairs = Counter()
+
+    e_phrases = Counter()
+    f_phrases = Counter()
     all_phrases_counter = Counter()
 
     with open(e_path, 'r') as e_f, open(f_path, 'r') as f_f, open(aligned_path, 'r') as aligned_f:
@@ -125,12 +126,11 @@ def phrase_extraction(e_path, f_path, aligned_path, max_length):
             phrases_counter = extract_phrases(e_str, f_str, alignments, max_length)
             all_phrases_counter.update(phrases_counter)
 
-            generate_output(all_phrases_counter)
-
             sample_size -= 1
-            raw_input('bla: ')
             if sample_size == 0:
                 break
+    print 'Phrases extracted'
+    generate_output(all_phrases_counter, 'file.out')
 
 
 def main():
