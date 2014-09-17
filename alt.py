@@ -21,7 +21,7 @@ def extract_phrases(e_str, f_str, alignments, max_length):
 			f_start = len(f_tokens)
 			f_end =  0
 
-			for e, f in alignments:
+			for f, e in alignments:
 				if e_start <= e <= e_end:
 					f_start = min(f, f_start)
 					f_end = max(f, f_end)
@@ -34,14 +34,10 @@ def extract_phrases(e_str, f_str, alignments, max_length):
 	return ret
 
 def get_phrase_alignment(e_start, e_end, f_start, f_end, alignments, e_tokens, f_tokens):
-	# e_phrase = ' '.join(e_tokens[i : j + 1])
-	# f_phrase = ''
-	print e_start, e_end, f_start, f_end
-
 	if f_end < 0:
 		return {}
 
-	for e, f in alignments:
+	for f, e in alignments:
 		if (f_start <= f <= f_end) and (e < e_start or e > e_end):
 			return {}
 
@@ -73,15 +69,14 @@ def get_phrase_alignment(e_start, e_end, f_start, f_end, alignments, e_tokens, f
 def extract_phrase_alignments(e_word_count, f_word_count, word_alignments, max_length=100):
 	ret = set()
 
-
 	return ret
 
 
 def extract_word_pairs(e_tokens, f_tokens, alignments):
 	ret = set()
 
-	for i, j in alignments:
-		ret.add((f_tokens[i], e_tokens[j]))
+	for f, e in alignments:
+		ret.add((f_tokens[f], e_tokens[e]))
 
 	return ret
 
