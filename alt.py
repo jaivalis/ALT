@@ -24,8 +24,8 @@ def extract_phrases(e_str, f_str, alignments, max_length):
                     f_end = max(f, f_end)
 
             tmp = get_phrase_alignment(e_start, e_end, f_start, f_end, alignments, e_tokens, f_tokens)
-            print tmp
-            print type(tmp)
+            if tmp is None:
+                continue
             phrase_alignment = tmp[0]
             e_phrase = tmp[1]
             f_phrase = tmp[2]
@@ -38,15 +38,15 @@ def extract_phrases(e_str, f_str, alignments, max_length):
 
 def get_phrase_alignment(e_start, e_end, f_start, f_end, alignments, e_tokens, f_tokens):
     if f_end < 0:
-        return {}
+        return None
 
     for f, e in alignments:
         if (f_start <= f <= f_end) and (e < e_start or e > e_end):
-            return {}
+            return None
 
     aligned_phrases = set()
-    e_phrases       = set()
-    f_phrases       = set()
+    e_phrases = set()
+    f_phrases = set()
 
     f_aligned = [j for _, j in alignments]
 
@@ -68,7 +68,7 @@ def get_phrase_alignment(e_start, e_end, f_start, f_end, alignments, e_tokens, f
         f_s -= 1
         if f_s in f_aligned or f_s < 0:  # until f_s aligned
             break
-    return (aligned_phrases, e_phrases, f_phrases)
+    return aligned_phrases, e_phrases, f_phrases
 
 
 def generate_output(phrase_counter, e_phrases, f_phrases, outfile=None):
@@ -83,8 +83,8 @@ def generate_output(phrase_counter, e_phrases, f_phrases, outfile=None):
     else:
         out = open(outfile, 'w')
     try:
-        e_phrases_count   = sum(e_phrases.values())
-        f_phrases_count   = sum(f_phrases.values())
+        e_phrases_count = sum(e_phrases.values())
+        f_phrases_count = sum(f_phrases.values())
         all_phrases_count = sum(phrase_counter.values())
         for tupl, count in phrase_counter.iteritems():
             e = tupl[0]
@@ -125,7 +125,6 @@ def parse_alignments(alignments_str):
 
 def phrase_extraction(e_path, f_path, aligned_path, max_length):
     # alignments_for_phrases = dict()
-
     phrase_pairs = Counter()
 
     e_phrases = Counter()
