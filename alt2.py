@@ -44,7 +44,7 @@ def generate_output(phrase_counter, token_pairs, e_phrases, f_phrases, outfile=N
             out.close()
 
 
-def echange_algorithm(e_path, k):
+def predictive_exchange_clustering(e_path, k):
     #start  from  k  classes,  randomly  or  heurisEcally  iniEalized
     #iteraEvely  move  each  word  of  the  vocabulary  to  the  class  that  results  in  the  best  likelihood  gain
     #stop  at  convergence  or  afer  a  given  number  of  iteraEons
@@ -52,9 +52,9 @@ def echange_algorithm(e_path, k):
 
     N_w = Counter()
     N_w_w = dict()
-    classes = dict()#.from(xrange(200))
+    classes = dict()
     N_C = Counter()
-    N_C_C = dict()
+    N_w_C = dict()
 
     with open(e_path, 'r') as e_f:
         sample_size = 10
@@ -80,16 +80,18 @@ def echange_algorithm(e_path, k):
         
         # initaialze k classes randomly
         for w in N_w:
-            rnd = randrange(200)
-            print rnd
+            rnd = randrange(k)
             if rnd in classes:
                 classes[rnd][len(classes[rnd]) + 1] = w
             else:
                 classes[rnd] = {}
                 classes[rnd][0] = w
-        print classes
 
+        # Count words in Classes
+        for j in range(len(classes)):
+            N_C[j] = sum(classes[j])
 
+        # TODO: Create N_w_C
 
     print 'classes clustered with exchange algorithm'
     #generate_output(e_phrases, classes, 'file.out')
@@ -101,9 +103,9 @@ def main():
         exit()
 
     e_path = sys.argv[1]
-    k = 200
+    k = 20
 
-    echange_algorithm(e_path, k)
+    predictive_exchange_clustering(e_path, k)
 
 if __name__ == '__main__':
     main()
