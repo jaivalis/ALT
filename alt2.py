@@ -1,6 +1,7 @@
 import sys
 from collections import Counter
 from random import randrange
+import math
 
 
 def generate_output(clusters, outfile=None):
@@ -48,6 +49,19 @@ def find_index(cluster, word):
     for i in range(len(cluster)):
         if word in list(cluster[i]):
             return i
+
+def compute_log_likelihood(N_C, N_w_C):
+    ret = 0
+    for v in N_w_C:
+        for c in N_w_C[v]:
+            if N_w_C[v][c]==0:
+                continue
+            ret += (N_w_C[v][c] * math.log(N_w_C[v][c]))
+    for c in N_C:
+        if N_C[c]==0:
+            continue
+        ret -= (N_C[c] * math.log(N_C[c]))
+    return ret
 
 def predictive_exchange_clustering(file_path, k):
     """ Implementation of the predictive exchange clustering algorithm
@@ -107,6 +121,53 @@ def predictive_exchange_clustering(file_path, k):
                     N_w_C[w][find_index(clusters, v)] = N_w_w[w][v]
                 else:
                     N_w_C[w][find_index(clusters, v)] += N_w_w[w][v]
+
+    log = 0
+    while log < 10000: #stop at convergence
+        for a in N_w:
+            log = compute_log_likelihood(N_C, N_w_C)
+            # remove word and update tables N_C and N_w_C
+            C_a = find_index(clusters, a)
+            #print " old class: ", C_a
+            N_C[C_a] = N_C[C_a] - N_w[a]
+            for w in N_w_C:
+                if w not in N_w_w: #the '.'
+                    continue
+                if a not in N_w_w[w]:
+                    continue
+                N_w_C[w][C_a] = N_w_C[w][C_a] - N_w_w[w][a]
+            for c in N_C:
+                #print "Class # ", c
+                # copy N_C and N_w_C
+                N_C_copy = N_C
+                N_w_C_copy = N_w_C
+                # move word to other class
+                if c == C_a:
+                    continue
+                N_C[c] = N_C[c] + N_w[w]
+                for w in N_w_C:
+                    if w not in N_w_w: #the '.'
+                        continue
+                    if a not in N_w_w[w]:
+                        continue
+                    N_w_C[w][c] = N_w_C[w][c] + N_w_w[w][a]
+                if compute_log_likelihood(N_C, N_w_C) < log:
+                    # if new class leads to less log-likelihood, don't move the word there
+                    N_C = N_C_copy
+                    N_w_C = N_w_C_copy
+                else:
+                    break
+                if c == len(N_C)-1:
+                    print "Warning, word wasn't moved to new class"
+                    # put it back to old class i guess?
+                    N_C[C_a] = N_C[C_a] + N_w[a]
+                    for w in N_w_C:
+                        if w not in N_w_w: #the '.'
+                            continue
+                        if a not in N_w_w[w]:
+                            continue
+                        N_w_C[w][C_a] = N_w_C[w][C_a] + N_w_w[w][a]
+
 
     return clusters
 
