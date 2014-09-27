@@ -3,11 +3,12 @@ from collections import Counter
 from random import randrange
 
 
-def generate_output(phrase_counter, token_pairs, e_phrases, f_phrases, outfile=None):
-    """ Generates the formatted output given the phrase counter as asked:
+def generate_output(clusters, outfile=None):
+    """Generates the formatted output given the phrase counter as asked:
+    <word> <class_id>
 
-      f ||| e ||| p(f|e) p(e|f) l(f|e) l(e|f) ||| freq(f) freq(e) freq(f,e)
-    FIXME
+    :param clusters: dict containing <class_id>, <tuple> pairs
+    :param outfile: filename to write output to
     """
 
     if outfile is None:
@@ -15,51 +16,35 @@ def generate_output(phrase_counter, token_pairs, e_phrases, f_phrases, outfile=N
     else:
         out = open(outfile, 'w')
     try:
-        e_phrases_count = sum(e_phrases.values())
-        f_phrases_count = sum(f_phrases.values())
-        all_phrases_count = sum(phrase_counter.values())
-        for pair in phrase_counter:
-            tok = pair.split('|||')
-            e = tok[0]
-            f = tok[1]
-
-
-            freq_f = f_phrases[f]
-            freq_e = e_phrases[e]
-            freq_fe = phrase_counter[pair]
-            prob_e = float(freq_e) / e_phrases_count
-            prob_f = float(freq_f) / f_phrases_count
-
-            cond_f_e = float(freq_fe) / freq_f
-            cond_e_f = float(freq_fe) / freq_e
-            l_e_f = -1 # TODO
-            l_f_e = -1 # TODO
-
-            string = "{0} ||| {1} {2:.4f} {3:.4f} {4:.4f} {5:.4f} ||| {6} {7} {8}".\
-                format(f, e, cond_f_e, cond_e_f, l_f_e, l_e_f, freq_f, freq_e, freq_fe)
-            out.write(string + '\n')
-
+        for key, tupl in clusters:
+            for w in tupl:
+                out.write(w + " " + int(key) + "\n")
     finally:
         if outfile is not None:
             out.close()
 
 
-def predictive_exchange_clustering(e_path, k):
-    #start  from  k  classes,  randomly  or  heurisEcally  iniEalized
-    #iteraEvely  move  each  word  of  the  vocabulary  to  the  class  that  results  in  the  best  likelihood  gain
-    #stop  at  convergence  or  afer  a  given  number  of  iteraEons
-    #result_ k clusters
+def predictive_exchange_clustering(file_path, k):
+    """ Implementation of the predictive exchange clustering algorithm
 
+    Start  from  k  classes,  randomly  or  heuristically  initialized
+    iteratively  move  each  word  of  the  vocabulary  to  the  class  that  results  in  the  best  likelihood  gain
+    stop  at  convergence  or  after  a  given  number  of  iterations.
+
+    :param file_path: Path to the file to be opened
+    :param k: Number of clusters requested
+    :return: dict containing the k clusters
+    """
     N_w = Counter()
     N_w_w = dict()
-    classes = dict()
+    clusters = dict()
     N_C = Counter()
     N_w_C = dict()
 
-    with open(e_path, 'r') as e_f:
+    with open(file_path, 'r') as e_file:
         sample_size = 10
-        for e_str in e_f:
-            e_tokens = e_str.strip().split()
+        for line in e_file:
+            e_tokens = line.strip().split()
             # Count the words
             N_w.update(e_tokens)
             
@@ -78,23 +63,22 @@ def predictive_exchange_clustering(e_path, k):
             if sample_size == 0:
                 break
         
-        # initaialze k classes randomly
-        for w in N_w:
-            rnd = randrange(k)
-            if rnd in classes:
-                classes[rnd][len(classes[rnd]) + 1] = w
-            else:
-                classes[rnd] = {}
-                classes[rnd][0] = w
+    # initialize k classes randomly
+    for w in N_w:
+        rnd = randrange(k)
+        if rnd in clusters:
+            clusters[rnd][len(clusters[rnd]) + 1] = w
+        else:
+            clusters[rnd] = {}
+            clusters[rnd][0] = w
 
-        # Count words in Classes
-        for j in range(len(classes)):
-            N_C[j] = sum(classes[j])
+    # Count words in Classes
+    for j in range(len(clusters)):
+        N_C[j] = sum(clusters[j])
 
         # TODO: Create N_w_C
 
-    print 'classes clustered with exchange algorithm'
-    #generate_output(e_phrases, classes, 'file.out')
+    return clusters
 
 
 def main():
@@ -105,7 +89,8 @@ def main():
     e_path = sys.argv[1]
     k = 20
 
-    predictive_exchange_clustering(e_path, k)
+    clusters = predictive_exchange_clustering(e_path, k)
+    # generate_output(clusters)  # TODO
 
 if __name__ == '__main__':
     main()
