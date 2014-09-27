@@ -34,6 +34,20 @@ def count_words_per_cluster(clusters):
         ret[i] = sum(clusters[i].values())
     return ret
 
+def in_List(dict_, word):
+    # looks up if word is in dict
+    if dict_ == {}:
+        return False
+    if word in dict_:
+        return True
+    else:
+        return False
+
+def find_index(cluster, word):
+    # looks up in cluster and returns index
+    for i in range(len(cluster)):
+        if word in list(cluster[i]):
+            return i
 
 def predictive_exchange_clustering(file_path, k):
     """ Implementation of the predictive exchange clustering algorithm
@@ -85,9 +99,16 @@ def predictive_exchange_clustering(file_path, k):
     N_C = count_words_per_cluster(clusters)
 
     # TODO: Create N_w_C
+    for w in N_w:
+        N_w_C[w] = [0 for x in range(k)]
+        if w in N_w_w:
+            for v in N_w_w[w]:
+                if in_List(N_w_C[w], find_index(clusters, v)):
+                    N_w_C[w][find_index(clusters, v)] = N_w_w[w][v]
+                else:
+                    N_w_C[w][find_index(clusters, v)] += N_w_w[w][v]
 
     return clusters
-
 
 def main():
     if len(sys.argv) != 2:
