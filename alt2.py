@@ -7,7 +7,7 @@ def generate_output(clusters, outfile=None):
     """Generates the formatted output given the phrase counter as asked:
     <word> <class_id>
 
-    :param clusters: dict containing <class_id>, <tuple> pairs
+    :param clusters: dict containing <class_id>, <Counter> pairs
     :param outfile: filename to write output to
     """
 
@@ -16,12 +16,23 @@ def generate_output(clusters, outfile=None):
     else:
         out = open(outfile, 'w')
     try:
-        for key, tupl in clusters:
-            for w in tupl:
-                out.write(w + " " + int(key) + "\n")
+        for key, counter in clusters.iteritems():
+            for w in counter:
+                out.write(w + " " + str(key) + "\n")
     finally:
         if outfile is not None:
             out.close()
+
+
+def count_words_per_cluster(clusters):
+    """ Given the clusters returns a dict containing the sum of counts of words per cluster
+    :param clusters
+    :return: dict containing the sum of counts of words per cluster
+    """
+    ret = {}
+    for i in range(len(clusters)):
+        ret[i] = sum(clusters[i].values())
+    return ret
 
 
 def predictive_exchange_clustering(file_path, k):
@@ -38,7 +49,7 @@ def predictive_exchange_clustering(file_path, k):
     N_w = Counter()
     N_w_w = dict()
     clusters = dict()
-    N_C = Counter()
+    N_C = dict()  # sum of counts per class
     N_w_C = dict()
 
     with open(file_path, 'r') as e_file:
@@ -66,17 +77,14 @@ def predictive_exchange_clustering(file_path, k):
     # initialize k classes randomly
     for w in N_w:
         rnd = randrange(k)
-        if rnd in clusters:
-            clusters[rnd][len(clusters[rnd]) + 1] = w
-        else:
-            clusters[rnd] = {}
-            clusters[rnd][0] = w
+        if rnd not in clusters:
+            clusters[rnd] = Counter([])
+        clusters[rnd].update([w])
 
     # Count words in Classes
-    for j in range(len(clusters)):
-        N_C[j] = sum(clusters[j])
+    N_C = count_words_per_cluster(clusters)
 
-        # TODO: Create N_w_C
+    # TODO: Create N_w_C
 
     return clusters
 
@@ -90,7 +98,7 @@ def main():
     k = 20
 
     clusters = predictive_exchange_clustering(e_path, k)
-    # generate_output(clusters)  # TODO
+    generate_output(clusters)  # TODO
 
 if __name__ == '__main__':
     main()
