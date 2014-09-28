@@ -35,7 +35,7 @@ def count_words_per_cluster(clusters):
     return ret
 
 
-def in_List(dict_, word):
+def in_list(dict_, word):
     # looks up if word is in dict
     if dict_ == {}:
         return False
@@ -54,15 +54,21 @@ def find_index(cluster, word):
 
 def compute_log_likelihood(N_C, N_w_C):
     ret = 0
-    for v in N_w_C:
-        for c in N_w_C[v]:
-            if N_w_C[v][c] == 0:
+    for word in N_w_C:
+        for c in N_w_C[word]:
+            if N_w_C[word][c] == 0:
                 continue
-            ret += (N_w_C[v][c] * math.log(N_w_C[v][c]))
-    for c in N_C:
-        if N_C[c] == 0:
+            # try:
+            ret += (N_w_C[word][c] * math.log(N_w_C[word][c]))
+            # except ValueError:
+            #     print "Value Error: log()\tword: '{0}' \tc: '{1}'\tN_w_C[word][c]={2}".format(word, c, N_w_C[word][c])
+    for word in N_C:
+        if N_C[word] == 0:
             continue
-        ret -= (N_C[c] * math.log(N_C[c]))
+        # try:
+        ret -= (N_C[word] * math.log(N_C[word]))
+        # except ValueError:
+        #     print "Value Error: log()\tword: '{0}' \tN_C[word]={1}".format(word, c, N_C[word])
     return ret
 
 
@@ -128,7 +134,7 @@ def predictive_exchange_clustering(file_path, k):
         N_w_C[w] = [0 for x in range(k)]
         if w in N_w_w:
             for v in N_w_w[w]:
-                if in_List(N_w_C[w], find_index(clusters, v)):
+                if in_list(N_w_C[w], find_index(clusters, v)):
                     N_w_C[w][find_index(clusters, v)] = N_w_w[w][v]
                 else:
                     N_w_C[w][find_index(clusters, v)] += N_w_w[w][v]
@@ -143,12 +149,12 @@ def predictive_exchange_clustering(file_path, k):
             N_C[C_a] = N_C[C_a] - N_w[word]
             for w in N_w_C:  # for word in word-class array
                 if w not in N_w_w:  # the '.'
-                    assert w == "."
+                    assert w == "." or w == ")"
                     continue
                 if word not in N_w_w[w]:
                     continue
                 N_w_C[w][C_a] = N_w_C[w][C_a] - N_w_w[w][word]
-            for c in N_C:
+            for c in N_C:  # for every count
                 #print "Class # ", c
                 # copy N_C and N_w_C
                 N_C_copy = N_C
@@ -159,7 +165,7 @@ def predictive_exchange_clustering(file_path, k):
                 N_C[c] = N_C[c] + N_w[w]
                 for w in N_w_C:
                     if w not in N_w_w:  # the '.'
-                        assert w == "."
+                        assert w == "." or w == ")"
                         continue
                     if word not in N_w_w[w]:
                         continue
@@ -170,9 +176,8 @@ def predictive_exchange_clustering(file_path, k):
                     N_w_C = N_w_C_copy
                 else:
                     break
-                if c == len(N_C)-1:
-                    print "Warning, word wasn't moved to new class"
-                    # put it back to old class i guess?
+                if c == len(N_C) - 1:  # put it back to old class i guess?
+                    print "word: '{0}' \tc: '{1}' not moved.".format(word, c)
                     N_C[C_a] = N_C[C_a] + N_w[word]
                     for w in N_w_C:
                         if w not in N_w_w:  # the '.'
@@ -193,7 +198,7 @@ def main():
     k = 20
 
     clusters = predictive_exchange_clustering(e_path, k)
-    generate_output(clusters)  # TODO
+    generate_output(clusters)
 
 if __name__ == '__main__':
     main()
