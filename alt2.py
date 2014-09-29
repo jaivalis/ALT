@@ -57,10 +57,10 @@ def find_index(cluster, word):
 def compute_log_likelihood(N_C, N_w_C):
     ret = 0
     for word in N_w_C:
-        for c in N_w_C[word]:
-            if N_w_C[word][c] == 0:
+        for count in N_w_C[word]:
+            if count == 0:
                 continue
-            ret += (N_w_C[word][c] * math.log(N_w_C[word][c]))
+            ret += (count * math.log(count))
     for cluster in N_C:
         if N_C[cluster] == 0:
             continue
@@ -117,7 +117,10 @@ def remove_word(clusters, word, N_C, N_w, N_w_C, N_w_w):
     for w in N_w_C:  # for word in word-class array
         if has_no_successor(N_w_w, word, w):
             continue
-        N_w_C[w][origin_cluster] = N_w_C[w][origin_cluster] - N_w_w[w][word]
+        if find_index(clusters, w) == origin_cluster:  # word is in
+            N_w_C[w][origin_cluster] = N_w_C[w][origin_cluster] - N_w_w[w][word]
+        else:
+            continue
     return clusters, N_C_, N_w_C, origin_cluster
 
 
@@ -206,9 +209,8 @@ def predictive_exchange_clustering(file_path, k):
             # put the word in the best cluster found
             clusters, N_C, N_w_C = move_word(clusters, word, best_cluster, N_C, N_w, N_w_C, N_w_w)
 
-            print "word '{0}' moved to cluster #{1} with log likelihood: {2}"\
-                .format(word, best_cluster, best_log_likelihood)
-            # raw_input('AHA!: ')
+            # print "word '{0}' moved to cluster #{1} with log likelihood: {2}"\
+            #     .format(word, best_cluster, best_log_likelihood)
 
         current_log_likelihood = best_log_likelihood
     return clusters
