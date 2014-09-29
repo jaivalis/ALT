@@ -24,14 +24,16 @@ def generate_output(clusters, outfile=None):
             out.close()
 
 
-def count_words_per_cluster(clusters):
+def count_words_per_cluster(clusters, N_w):
     """ Given the clusters returns a dict containing the sum of counts of words per cluster
     :param clusters
     :return: dict containing the sum of counts of words per cluster
     """
     ret = {}
     for i in range(len(clusters)):
-        ret[i] = sum(clusters[i].values())
+        ret[i] = 0
+        for w in clusters[i]:
+            ret[i] += N_w[w]
     return ret
 
 
@@ -167,7 +169,7 @@ def predictive_exchange_clustering(file_path, k):
         clusters[rnd].update([w])
 
     # Count words in Classes
-    N_C = count_words_per_cluster(clusters)
+    N_C = count_words_per_cluster(clusters, N_w)
 
     # Create N_w_C
     for w in N_w:
