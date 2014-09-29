@@ -2,7 +2,6 @@ import sys
 from collections import Counter
 from random import randrange
 import math
-import copy
 
 
 def generate_output(clusters, outfile=None):
@@ -59,27 +58,65 @@ def compute_log_likelihood(N_C, N_w_C):
         for c in N_w_C[word]:
             if N_w_C[word][c] == 0:
                 continue
-            # try:
             ret += (N_w_C[word][c] * math.log(N_w_C[word][c]))
-            # except ValueError:
-            #     print "Value Error: log()\tword: '{0}' \tc: '{1}'\tN_w_C[word][c]={2}".format(word, c, N_w_C[word][c])
-    for word in N_C:
-        if N_C[word] == 0:
+    for cluster in N_C:
+        if N_C[cluster] == 0:
             continue
-        # try:
-        if N_C[word] < 0:
-            print 'negative', word, N_C[word]
-        ret -= (N_C[word] * math.log(N_C[word]))
-        # except ValueError:
-        #     print "Value Error: log()\tword: '{0}' \tN_C[word]={1}".format(word, c, N_C[word])
+        if N_C[cluster] < 0:
+            print 'Negative log likelihood ', N_C[cluster]
+        ret -= (N_C[cluster] * math.log(N_C[cluster]))
     return ret
 
 
-def move_word(word, cluster, N_C, N_w):
+def has_no_successor(N_w_w, word, w):
+    """
+    Returns true if the word has no successor in the N_w_w array, false otherwise
+    :param N_w_w:
+    :param word:
+    :param w:
+    :return: true if the word has no successor in the N_w_w array, false otherwise
+    """
+    if w not in N_w_w:
+        assert w == "." or w == ")"
+        return True
+    if word not in N_w_w[w]:
+        return True
+    return False
 
-    delta = N_C * math.log(N_C)
-    N_C_prime = N_C - N_w
-    delta = delta - N_C_prime * math.log(N_C_prime)
+
+def move_word(clusters, word, cluster, N_C, N_w, N_w_C, N_w_w):
+    """ Moves a word to a given cluster
+    :param clusters:
+    :param word:
+    :param N_C:
+    :param N_w:
+    :param N_w_C:
+    :param N_w_w:
+    :return:
+    """
+    N_C[cluster] = N_C[cluster] + N_w[word]
+    clusters[cluster].update([word])
+    for w in N_w_C:
+        if has_no_successor(N_w_w, word, w):
+            continue
+        N_w_C[w][cluster] = N_w_C[w][cluster] + N_w_w[w][word]
+    return clusters, N_C, N_w_C
+
+
+def remove_word(clusters, word, N_C, N_w, N_w_C, N_w_w):
+    origin_cluster = find_index(clusters, word)
+    del clusters[origin_cluster][word]
+    if N_C[origin_cluster] < N_w[word]:  # TODO
+        print ''
+    N_C_ = N_C
+    N_C_[origin_cluster] = N_C[origin_cluster] - N_w[word]
+
+    # remove word from clusters
+    for w in N_w_C:  # for word in word-class array
+        if has_no_successor(N_w_w, word, w):
+            continue
+        N_w_C[w][origin_cluster] = N_w_C[w][origin_cluster] - N_w_w[w][word]
+    return clusters, N_C_, N_w_C, origin_cluster
 
 
 def predictive_exchange_clustering(file_path, k):
@@ -134,7 +171,7 @@ def predictive_exchange_clustering(file_path, k):
 
     # Create N_w_C
     for w in N_w:
-        N_w_C[w] = [0 for x in range(k)]
+        N_w_C[w] = [0 for _ in range(k)]
         if w in N_w_w:
             for v in N_w_w[w]:
                 if in_list(N_w_C[w], find_index(clusters, v)):
@@ -142,58 +179,36 @@ def predictive_exchange_clustering(file_path, k):
                 else:
                     N_w_C[w][find_index(clusters, v)] += N_w_w[w][v]
 
-    log = 0
-    while log < 10000:  # stop at convergence
-        print 'before', sum(N_C.values())
-        for word in N_w:  # for word in vocabulary
-            log = compute_log_likelihood(N_C, N_w_C)
-            #print " old class: ", C_a
-            # copy N_C and N_w_C
-            N_C_copy = copy.deepcopy(N_C)
-            N_w_C_copy = copy.deepcopy(N_w_C)
-            # remove word and update tables N_C and N_w_C
-            C_a = find_index(clusters, word)
-            print 'count original class', N_C[C_a]
-            N_C_ = N_C
-            N_C_[C_a] = N_C[C_a] - N_w[word]
-            for w in N_w_C:  # for word in word-class array
-                if w not in N_w_w:  # the '.'
-                    assert w == "." or w == ")"
-                    continue
-                if word not in N_w_w[w]:
-                    continue
-                N_w_C[w][C_a] = N_w_C[w][C_a] - N_w_w[w][word]
-            for c in N_C:  # for every count
-                print 'before class', c, 'count', N_C[c]
-                #print "Class # ", c
-                # move word to other class
-                if c == C_a:
-                    continue
-                N_C[c] = N_C[c] + N_w[word]
-                for w in N_w_C:
-                    if w not in N_w_w:  # the '.'
-                        assert w == "." or w == ")"
-                        continue
-                    if word not in N_w_w[w]:
-                        continue
-                    N_w_C[w][c] = N_w_C[w][c] + N_w_w[w][word]
-                if compute_log_likelihood(N_C, N_w_C) < log:
-                    # if new class leads to less log-likelihood, don't move the word there
-                    N_C = copy.deepcopy(N_C_copy)
-                    N_w_C = copy.deepcopy(N_w_C_copy)
-                    print 'not moved! after class', c, 'count', N_C[c], 'occurencies word', N_w[word]
-                else:
-                    N_C[C_a] = N_C_[C_a]
-                    print 'moved! after class', c, 'count', N_C[c], 'occurencies word', N_w[word]
-                    print 'count original class after moved', N_C[C_a]
-                    break
-                if c == len(N_C) - 1:  # put it back to old class i guess?
-                    print "word: '{0}' \tc: '{1}' not moved.".format(word, c)
-                    N_C = N_C_copy
-                    N_W_C = N_w_C_copy
-            print 'after', sum(N_C.values())
-            raw_input('AHA!: ')
+    current_log_likelihood = 0
+    while current_log_likelihood < 10000:  # stop at convergence
 
+        for word in N_w:  # for word in vocabulary
+            best_log_likelihood = compute_log_likelihood(N_C, N_w_C)
+
+            clusters, N_C, N_w_C, origin_cluster = remove_word(clusters, word, N_C, N_w, N_w_C, N_w_w)
+
+            best_cluster = origin_cluster
+            for cluster in N_C:  # try every other cluster
+                if cluster == origin_cluster:  # the log likelihood has already been computed
+                    continue
+
+                clusters, N_C, N_w_C = move_word(clusters, word, cluster, N_C, N_w, N_w_C, N_w_w)
+
+                log_likelihood = compute_log_likelihood(N_C, N_w_C)
+                if log_likelihood > best_log_likelihood:
+                    best_log_likelihood = log_likelihood
+                    best_cluster = cluster
+
+                clusters, N_C, N_w_C, origin_cluster = remove_word(clusters, word, N_C, N_w, N_w_C, N_w_w)
+
+            # put the word in the best cluster found
+            clusters, N_C, N_w_C = move_word(clusters, word, best_cluster, N_C, N_w, N_w_C, N_w_w)
+
+            print "word '{0}' moved to cluster #{1} with log likelihood: {2}"\
+                .format(word, best_cluster, best_log_likelihood)
+            # raw_input('AHA!: ')
+
+        current_log_likelihood = best_log_likelihood
     return clusters
 
 
