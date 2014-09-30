@@ -78,10 +78,7 @@ def has_no_successor(N_w_w, word, w):
     :param w:
     :return: true if the word has no successor in the N_w_w array, false otherwise
     """
-    if w not in N_w_w:
-        assert w == "." or w == ")"
-        return True
-    if word not in N_w_w[w]:
+    if w not in N_w_w or word not in N_w_w[w]:
         return True
     return False
 
@@ -108,8 +105,6 @@ def move_word(clusters, word, cluster, N_C, N_w, N_w_C, N_w_w):
 def remove_word(clusters, word, N_C, N_w, N_w_C, N_w_w):
     origin_cluster = find_index(clusters, word)
     del clusters[origin_cluster][word]
-    if N_C[origin_cluster] < N_w[word]:  # TODO
-        print ''
     N_C_ = N_C
     N_C_[origin_cluster] = N_C[origin_cluster] - N_w[word]
 
