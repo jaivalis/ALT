@@ -70,17 +70,16 @@ def compute_log_likelihood(N_C, N_w_C):
     return ret
 
 
-def has_no_successor(N_w_w, word, w):
+def successor_pair_exists(N_w_w, w1, w2):
+    """ Returns true if the successor pair exists in the N_w_w array, false otherwise
+    :param N_w_w: Successor pair matrix
+    :param w1:    First word
+    :param w2:    Successor word
+    :return: true if the successor pair exists in the N_w_w array, false otherwise
     """
-    Returns true if the word has no successor in the N_w_w array, false otherwise
-    :param N_w_w:
-    :param word:
-    :param w:
-    :return: true if the word has no successor in the N_w_w array, false otherwise
-    """
-    if w not in N_w_w or word not in N_w_w[w]:
-        return True
-    return False
+    if w1 not in N_w_w or w2 not in N_w_w[w1]:
+        return False
+    return True
 
 
 def move_word(clusters, word, cluster, N_C, N_w, N_w_C, N_w_w):
@@ -96,35 +95,34 @@ def move_word(clusters, word, cluster, N_C, N_w, N_w_C, N_w_w):
     N_C[cluster] = N_C[cluster] + N_w[word]
     clusters[cluster].update([word])
     for w in N_w_C:
-        if has_no_successor(N_w_w, word, w):
-            continue
-        N_w_C[w][cluster] = N_w_C[w][cluster] + N_w_w[w][word]
+        if successor_pair_exists(N_w_w, w, word):
+            N_w_C[w][cluster] = N_w_C[w][cluster] + N_w_w[w][word]
     return clusters, N_C, N_w_C
 
 
 def remove_word(clusters, word, N_C, N_w, N_w_C, N_w_w):
     origin_cluster = find_index(clusters, word)
     del clusters[origin_cluster][word]
-    N_C_ = N_C
-    N_C_[origin_cluster] = N_C[origin_cluster] - N_w[word]
+    N_C[origin_cluster] -= N_w[word]
 
-    # remove word from clusters
     for w in N_w_C:  # for word in word-class array
-        if has_no_successor(N_w_w, word, w):
+        if not successor_pair_exists(N_w_w, w, word):
             continue
-        if find_index(clusters, w) == origin_cluster:  # word is in
-            N_w_C[w][origin_cluster] = N_w_C[w][origin_cluster] - N_w_w[w][word]
+        if find_index(clusters, w) == origin_cluster:  # word is in the origin cluster
+            newcount = N_w_C[w][origin_cluster] - N_w_w[w][word]
+            if newcount < 0:
+                pass
+            N_w_C[w][origin_cluster] -= N_w_w[w][word]
         else:
             continue
-    return clusters, N_C_, N_w_C, origin_cluster
+    return clusters, N_C, N_w_C, origin_cluster
 
 
-def predictive_exchange_clustering(file_path, k):
+def predictive_exchange_clustering(file_path, k, convergence_steps=100, sample_sentense_count=1000):
     """ Implementation of the predictive exchange clustering algorithm
 
-    Start  from  k  classes,  randomly  or  heuristically  initialized
-    iteratively  move  each  word  of  the  vocabulary  to  the  class  that  results  in  the  best  likelihood  gain
-    stop  at  convergence  or  after  a  given  number  of  iterations.
+    Start from k classes, randomly initialized iteratively move each word of the vocabulary to the class
+    that results in the best likelihood gain stop at convergence or after a given number of iterations.
 
     :param file_path: Path to the file to be opened
     :param k: Number of clusters requested
@@ -138,14 +136,12 @@ def predictive_exchange_clustering(file_path, k):
     clusters = dict()  # returned variable
 
     with open(file_path, 'r') as e_file:
-        sample_size = 10
         for line in e_file:
             e_tokens = line.strip().split()
-            # Count the words
-            N_w.update(e_tokens)
-            
-            # Count successors
-            for i in range(len(e_tokens)-1):
+
+            N_w.update(e_tokens)  # Count the words
+
+            for i in range(len(e_tokens)-1):  # Count successors
                 if e_tokens[i] in N_w_w:
                     if e_tokens[i+1] in N_w_w[e_tokens[i]]:
                         N_w_w[e_tokens[i]][e_tokens[i+1]] += 1
@@ -155,22 +151,19 @@ def predictive_exchange_clustering(file_path, k):
                     N_w_w[e_tokens[i]] = {}
                     N_w_w[e_tokens[i]][e_tokens[i+1]] = 1
 
-            sample_size -= 1
-            if sample_size == 0:
+            sample_sentense_count -= 1
+            if sample_sentense_count == 0:
                 break
-        
-    # initialize k classes randomly
-    for w in N_w:
+
+    for w in N_w:  # initialize k classes randomly [Correct, checked]
         rnd = randrange(k)
         if rnd not in clusters:
             clusters[rnd] = Counter([])
         clusters[rnd].update([w])
 
-    # Count words in Classes
-    N_C = count_words_per_cluster(clusters, N_w)
+    N_C = count_words_per_cluster(clusters, N_w)  # Count words in Classes
 
-    # Create N_w_C
-    for w in N_w:
+    for w in N_w:  # Create N_w_C [Correct, checked]
         N_w_C[w] = [0 for _ in range(k)]
         if w in N_w_w:
             for v in N_w_w[w]:
@@ -180,33 +173,36 @@ def predictive_exchange_clustering(file_path, k):
                     N_w_C[w][find_index(clusters, v)] += N_w_w[w][v]
 
     current_log_likelihood = 0
-    while current_log_likelihood < 10000:  # stop at convergence
+    converged = False
+    steps = 0
+    while not converged and steps < convergence_steps:  # stop at convergence
+        for word in N_w:                                # for word in vocabulary
+            best_log_likelihood = compute_log_likelihood(N_C, N_w_C)  # calculate initial log likelihood
 
-        for word in N_w:  # for word in vocabulary
-            best_log_likelihood = compute_log_likelihood(N_C, N_w_C)
-
+            # 0 - remove word from original (random) cluster
             clusters, N_C, N_w_C, origin_cluster = remove_word(clusters, word, N_C, N_w, N_w_C, N_w_w)
-
             best_cluster = origin_cluster
+
             for cluster in N_C:  # try every other cluster
                 if cluster == origin_cluster:  # the log likelihood has already been computed
                     continue
-
+                # 1 - put the word in the cluster
                 clusters, N_C, N_w_C = move_word(clusters, word, cluster, N_C, N_w, N_w_C, N_w_w)
 
+                # 2 - measure log likelihood and store most likelihood
                 log_likelihood = compute_log_likelihood(N_C, N_w_C)
                 if log_likelihood > best_log_likelihood:
                     best_log_likelihood = log_likelihood
                     best_cluster = cluster
 
+                # 3 - remove word from cluster
                 clusters, N_C, N_w_C, origin_cluster = remove_word(clusters, word, N_C, N_w, N_w_C, N_w_w)
 
-            # put the word in the best cluster found
+            # 4 - put the word in the best cluster found
             clusters, N_C, N_w_C = move_word(clusters, word, best_cluster, N_C, N_w, N_w_C, N_w_w)
 
-            # print "word '{0}' moved to cluster #{1} with log likelihood: {2}"\
-            #     .format(word, best_cluster, best_log_likelihood)
-
+        converged = math.fabs(current_log_likelihood - best_log_likelihood) < 1
+        steps += 1
         current_log_likelihood = best_log_likelihood
     return clusters
 
@@ -215,9 +211,8 @@ def main():
     if len(sys.argv) != 2:
         print 'Usage: python alt2.py [e_file]'
         exit()
-
     e_path = sys.argv[1]
-    k = 20
+    k = 4
 
     clusters = predictive_exchange_clustering(e_path, k)
     generate_output(clusters)
