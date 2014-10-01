@@ -195,8 +195,8 @@ def predictive_exchange_clustering(file_path, k, convergence_steps=100, sample_s
                     best_log_likelihood = log_likelihood
                     best_cluster = cluster
 
-                # 3 - remove word from cluster
-                clusters, N_C, N_w_C, origin_cluster = remove_word(clusters, word, N_C, N_w, N_w_C, N_w_w)
+                # 3 - remove word from cluster (do not store the cluster# returned value)
+                clusters, N_C, N_w_C, _ = remove_word(clusters, word, N_C, N_w, N_w_C, N_w_w)
 
             # 4 - put the word in the best cluster found
             clusters, N_C, N_w_C = move_word(clusters, word, best_cluster, N_C, N_w, N_w_C, N_w_w)
