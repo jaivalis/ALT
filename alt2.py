@@ -37,18 +37,12 @@ def count_words_per_cluster(clusters, N_w):
     return ret
 
 
-def in_list(dict_, word):
-    # looks up if word is in dict
-    if dict_ == {}:
-        return False
-    if word in dict_:
-        return True
-    else:
-        return False
-
-
-def find_index(cluster, word):
-    # looks up in cluster and returns index
+def get_cluster_index(cluster, word):
+    """ Returns the index of a given word in the clusters dict
+    :param cluster: clusters dict
+    :param word: the word to look for
+    :return: index of a given word in the clusters dict
+    """
     for i in range(len(cluster)):
         if word in list(cluster[i]):
             return i
@@ -101,24 +95,20 @@ def move_word(clusters, word, cluster, N_C, N_w, N_w_C, N_w_w):
 
 
 def remove_word(clusters, word, N_C, N_w, N_w_C, N_w_w):
-    origin_cluster = find_index(clusters, word)
+    origin_cluster = get_cluster_index(clusters, word)
     del clusters[origin_cluster][word]
     N_C[origin_cluster] -= N_w[word]
 
     for w in N_w_C:  # for word in word-class array
         if not successor_pair_exists(N_w_w, w, word):
             continue
-        if find_index(clusters, w) == origin_cluster:  # word is in the origin cluster
-            newcount = N_w_C[w][origin_cluster] - N_w_w[w][word]
-            if newcount < 0:
-                pass
-            N_w_C[w][origin_cluster] -= N_w_w[w][word]
-        else:
-            continue
+        # if find_index(clusters, w) == origin_cluster:  # word is in the origin cluster
+            # newcount = N_w_C[w][origin_cluster] - N_w_w[w][word]
+        N_w_C[w][origin_cluster] -= N_w_w[w][word]
     return clusters, N_C, N_w_C, origin_cluster
 
 
-def predictive_exchange_clustering(file_path, k, convergence_steps=100, sample_sentense_count=1000):
+def predictive_exchange_clustering(file_path, k, convergence_steps=100, sample_sentense_count=100):
     """ Implementation of the predictive exchange clustering algorithm
 
     Start from k classes, randomly initialized iteratively move each word of the vocabulary to the class
@@ -128,10 +118,10 @@ def predictive_exchange_clustering(file_path, k, convergence_steps=100, sample_s
     :param k: Number of clusters requested
     :return: dict containing the k clusters
     """
-    N_w = Counter()  # word counter
-    N_w_w = dict()  # word successors
-    N_C = dict()  # sum of counts per class
-    N_w_C = dict()  # word-class successors
+    N_w = Counter()  # word counter/vocabulary
+    N_w_w = dict()   # word successors
+    N_C = dict()     # sum of counts per class
+    N_w_C = dict()   # word-class successors
 
     clusters = dict()  # returned variable
 
@@ -163,14 +153,11 @@ def predictive_exchange_clustering(file_path, k, convergence_steps=100, sample_s
 
     N_C = count_words_per_cluster(clusters, N_w)  # Count words in Classes
 
-    for w in N_w:  # Create N_w_C [Correct, checked]
-        N_w_C[w] = [0 for _ in range(k)]
-        if w in N_w_w:
-            for v in N_w_w[w]:
-                if in_list(N_w_C[w], find_index(clusters, v)):
-                    N_w_C[w][find_index(clusters, v)] = N_w_w[w][v]
-                else:
-                    N_w_C[w][find_index(clusters, v)] += N_w_w[w][v]
+    for word in N_w:  # Create N_w_C [Correct, checked]
+        N_w_C[word] = [0 for _ in range(k)]
+        if word in N_w_w:
+            for v in N_w_w[word]:
+                N_w_C[word][get_cluster_index(clusters, v)] += N_w_w[word][v]
 
     current_log_likelihood = 0
     converged = False
