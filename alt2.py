@@ -1,6 +1,7 @@
 import sys
 from collections import Counter
 from random import randrange
+from time import time
 import math
 
 
@@ -22,6 +23,7 @@ def generate_output(clusters, outfile=None):
     finally:
         if outfile is not None:
             out.close()
+            print "Output file {} created".format(outfile)
 
 
 def count_words_per_cluster(clusters, N_w):
@@ -108,7 +110,7 @@ def remove_word(clusters, word, N_C, N_w, N_w_C, N_w_w):
     return clusters, N_C, N_w_C, origin_cluster
 
 
-def predictive_exchange_clustering(file_path, k, convergence_steps=100, sample_sentense_count=100):
+def predictive_exchange_clustering(file_path, k, convergence_steps=100, sample_sentence_count=100):
     """ Implementation of the predictive exchange clustering algorithm
 
     Start from k classes, randomly initialized iteratively move each word of the vocabulary to the class
@@ -141,8 +143,8 @@ def predictive_exchange_clustering(file_path, k, convergence_steps=100, sample_s
                     N_w_w[e_tokens[i]] = {}
                     N_w_w[e_tokens[i]][e_tokens[i+1]] = 1
 
-            sample_sentense_count -= 1
-            if sample_sentense_count == 0:
+            sample_sentence_count -= 1
+            if sample_sentence_count == 0:
                 break
 
     for w in N_w:  # initialize k classes randomly [Correct, checked]
@@ -201,8 +203,11 @@ def main():
     e_path = sys.argv[1]
     k = 4
 
-    clusters = predictive_exchange_clustering(e_path, k)
-    generate_output(clusters)
+    clusters = predictive_exchange_clustering(e_path, k, convergence_steps=100, sample_sentence_count=100)
+    generate_output(clusters, outfile="clusters.out")
 
 if __name__ == '__main__':
+    t1 = time()
     main()
+    t2 = time()
+    print "Total runtime {:.2f} seconds".format(t2-t1)
