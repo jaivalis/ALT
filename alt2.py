@@ -110,7 +110,7 @@ def remove_word(clusters, word, N_C, N_w, N_w_C, N_w_w):
     return clusters, N_C, N_w_C, origin_cluster
 
 
-def predictive_exchange_clustering(file_path, k, convergence_steps=100, sample_sentence_count=100):
+def predictive_exchange_clustering(file_path, k, convergence_steps=100):
     """ Implementation of the predictive exchange clustering algorithm
 
     Start from k classes, randomly initialized iteratively move each word of the vocabulary to the class
@@ -120,6 +120,7 @@ def predictive_exchange_clustering(file_path, k, convergence_steps=100, sample_s
     :param k: Number of clusters requested
     :return: dict containing the k clusters
     """
+    t3 = time()
     N_w = Counter()  # word counter/vocabulary
     N_w_w = dict()   # word successors
     N_C = dict()     # sum of counts per class
@@ -143,9 +144,6 @@ def predictive_exchange_clustering(file_path, k, convergence_steps=100, sample_s
                     N_w_w[e_tokens[i]] = {}
                     N_w_w[e_tokens[i]][e_tokens[i+1]] = 1
 
-            sample_sentence_count -= 1
-            if sample_sentence_count == 0:
-                break
 
     for w in N_w:  # initialize k classes randomly [Correct, checked]
         rnd = randrange(k)
@@ -163,6 +161,10 @@ def predictive_exchange_clustering(file_path, k, convergence_steps=100, sample_s
 
     current_log_likelihood = 0
     converged = False
+    steps = 0
+    t4 = time()
+    print "Total runtime {:.2f} seconds".format(t4-t3)
+    print "init done"
     steps = 0
     while not converged and steps < convergence_steps:  # stop at convergence
         for word in N_w:                                # for word in vocabulary
@@ -193,6 +195,9 @@ def predictive_exchange_clustering(file_path, k, convergence_steps=100, sample_s
         converged = math.fabs(current_log_likelihood - best_log_likelihood) < 1
         steps += 1
         current_log_likelihood = best_log_likelihood
+        steps += 1
+        if steps % 25 == 0:
+            print steps, best_log_likelihood
     return clusters
 
 
@@ -201,10 +206,10 @@ def main():
         print 'Usage: python alt2.py [e_file]'
         exit()
     e_path = sys.argv[1]
-    k = 4
+    k = 200
 
-    clusters = predictive_exchange_clustering(e_path, k, convergence_steps=100, sample_sentence_count=100)
-    generate_output(clusters, outfile="clusters.out")
+    clusters = predictive_exchange_clustering(e_path, k, convergence_steps=100)
+    generate_output(clusters, outfile="clusters2.out")
 
 if __name__ == '__main__':
     t1 = time()
