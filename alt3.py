@@ -136,7 +136,7 @@ def find_orientations(ms, e, f, e_suc, f_suc, e_tokens, f_tokens, string1, strin
             f_a = f_tokens.index(f)
             e_b = e_tokens.index(e_suc)
             e_a = e_tokens.index(e)
-            print f_a, f_b, '||', e_a, e_b
+            print f_a, f, f_b, f_suc, '||', e_a, e, e_b, e_suc
             if monotone(f_a, f_b, e_a, e_b):
                 print "mono"
                 ms = store_o(ms, f, e)
