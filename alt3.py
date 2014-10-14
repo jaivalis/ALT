@@ -125,6 +125,16 @@ def translate(aligned_phrases, word):
     for pair in aligned_phrases:
         if pair[0] == word:
             return pair[1]
+    min_ret_size = 10
+    for pair in aligned_phrases:  # word hasn't been found, because of translation into multiple words
+        split_pair_word = pair[0].split()
+        for split_word in split_pair_word:
+            if split_word == word:
+                ret_size = len(pair[1])  # return shortest phrase, since aligned_phrases might contain word more often
+                if ret_size < min_ret_size:
+                    ret = pair[1]
+    return ret
+
 
 
 def monotone(f_a, f_b, e_a, e_b, orientation):
@@ -254,7 +264,7 @@ def get_translation_indexes(index, suc_index, alignments):
 
 def orientation_extraction(e_path, f_path, aligned_path, max_length):
     with open(e_path, 'r') as e_f, open(f_path, 'r') as f_f, open(aligned_path, 'r') as aligned_f:
-        sample_size = 1
+        sample_size = 2
         for e_str, f_str, align_str in zip(e_f, f_f, aligned_f):
             e_tokens = e_str.strip().split()
             f_tokens = f_str.strip().split()
@@ -266,11 +276,9 @@ def orientation_extraction(e_path, f_path, aligned_path, max_length):
             for e_index, e in enumerate(e_tokens):  # word based
                 orientation = 'lr'
                 e_suc = find_single_successor(e_tokens, e_index, orientation)
-                print e_suc
                 if e_suc is None:  # last word
                     break
                 f = translate(e_f, e)
-                print f
                 if f is not None:
                     if ' ' in f:  # e was translated to more than one foreign words
                         f_split = f.strip().split()
@@ -330,13 +338,11 @@ def orientation_extraction(e_path, f_path, aligned_path, max_length):
             for e_index, e in enumerate(e_tokens):  # word based
                 orientation = 'rl'
                 e_suc = find_single_successor(e_tokens, e_index, orientation)
-                print e_suc
                 if e_index == 0:
                     continue
                 if e_suc is None:  # last word
                     break
                 f = translate(e_f, e)
-                print f
                 if f is not None:
                     if ' ' in f:  # e was translated to more than one foreign words
                         f_split = f.strip().split()
