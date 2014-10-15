@@ -257,7 +257,7 @@ def get_phrase_containing(e_f, e):
     return ret
 
 
-def word_based_orientation_extract(alignments, e_tokens, f_tokens, e_f, orientation):
+def word_based_orientation_extract(e_tokens, f_tokens, e_f, orientation):
     """ Updates the static variables containing the counts of the orientations by word based extraction
     :param alignments:
     :param e_tokens:
@@ -275,7 +275,7 @@ def word_based_orientation_extract(alignments, e_tokens, f_tokens, e_f, orientat
 
         e_token = e_tokens[e_index]
         e = get_phrase_containing(e_f, e_token)
-        if e is None:  # e not in e_f, probablz error in phrase extraction :(
+        if e is None:  # e not in e_f, probably error in phrase extraction :(
             e_index += direction * 1
             continue
         e_start, e_end_ = get_phrase_indexes(e, e_tokens)
@@ -305,42 +305,57 @@ def word_based_orientation_extract(alignments, e_tokens, f_tokens, e_f, orientat
 
 
 def phrase_based_orientation_extract(e_phrases, f_phrases, e_tokens, f_tokens, e_f, orientation):
-    d = -1 if orientation == 'rl' else +1  #TODO: 'rl'
+
     for _e in e_phrases:
         e = _e[0]
         f = translate(e_f, e)
+        print e, '-', f
+
         _, e_end = get_phrase_indexes(e, e_tokens)
         _, f_end = get_phrase_indexes(f, f_tokens)
 
         e_sucs = find_successors(e_tokens, e_phrases, e_end)
-        f_sucs = find_successors(f_tokens, f_phrases, f_end)
 
         for e_suc in e_sucs:
-            for f_suc in f_sucs:
-                e_suc_start, _ = get_phrase_indexes(e_suc, e_tokens)
-                f_suc_start, _ = get_phrase_indexes(f_suc, f_tokens)
+            f_suc = translate(e_f, e_suc)
+            if f_suc is None:
+                continue
 
-                o = get_orientation(e_end, e_suc_start, f_end, f_suc_start, orientation)
-                store_orientation(o, e, f, orientation)
+            e_suc_start, _ = get_phrase_indexes(e_suc, e_tokens)
+            f_suc_start, _ = get_phrase_indexes(f_suc, f_tokens)
+
+            o = get_orientation(e_end, e_suc_start, f_end, f_suc_start, orientation)
+            store_orientation(o, e, f, orientation)
+
+
+def generate_output(phrase_pairs):
+
+    for phrase_pair in phrase_pairs:
+        # normalze all orientations
+        pass
 
 
 def orientation_extraction(e_path, f_path, aligned_path, max_length):
+    phrase_pairs = set()
     with open(e_path, 'r') as e_f, open(f_path, 'r') as f_f, open(aligned_path, 'r') as aligned_f:
-        sample_size = 10
+        sample_size = 100
         for e_str, f_str, align_str in zip(e_f, f_f, aligned_f):
             e_tokens = e_str.strip().split()
             f_tokens = f_str.strip().split()
 
             alignments = parse_alignments(align_str)
             e_f, e_phrases, f_phrases = extract_phrases(e_tokens, f_tokens, alignments, max_length)
+            # update phrase pairs
+            phrase_pairs.add()
 
             # Word based
-            word_based_orientation_extract(alignments, e_tokens, f_tokens, e_f, orientation='lr')
-            word_based_orientation_extract(alignments, e_tokens, f_tokens, e_f, orientation='rl')
-
+            word_based_orientation_extract(e_tokens, f_tokens, e_f, orientation='lr')
+            word_based_orientation_extract(e_tokens, f_tokens, e_f, orientation='rl')
             # Phrase based
-            ## phrase_based_orientation_extract(e_phrases, f_phrases, e_tokens, f_tokens, e_f, orientation='lr')
-            ## phrase_based_orientation_extract(alignments, e_tokens, f_tokens, e_f, orientation='rl')
+            phrase_based_orientation_extract(e_phrases, f_phrases, e_tokens, f_tokens, e_f, orientation='lr')
+            phrase_based_orientation_extract(e_phrases, f_phrases, e_tokens, f_tokens, e_f, orientation='rl')
+
+            generate_output(phrase_pairs)
 
             sample_size -= 1
             if sample_size == 0:
