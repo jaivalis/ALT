@@ -124,12 +124,12 @@ def translate(aligned_phrases, word):
     min_ret_size = 10
     ret = None
     for pair in aligned_phrases:  # word hasn't been found, because of translation into multiple words
-        split_pair_word = pair[0].split()
-        for split_word in split_pair_word:
-            if split_word == word:
-                ret_size = len(pair[1])  # return shortest phrase, since aligned_phrases might contain word more often
-                if ret_size < min_ret_size:
-                    ret = pair[1]
+        if word not in pair[0]:
+            continue
+        if word in pair[0]:
+            ret_size = len(pair[1])  # return shortest phrase, since aligned_phrases might contain word more often
+            if ret_size < min_ret_size:
+                ret = pair[1]
     return ret
 
 
@@ -159,7 +159,7 @@ def discontinuous(f_a, f_b, e_a, e_b, orientation):
     return False
 
 
-def get_orientation(e_index, e_suc_index, f_index, f_suc_index, orientation, approach):
+def get_orientation(e_index, e_suc_index, f_index, f_suc_index, orientation):
     """ Determines the orientation for a given e-f pair
     :param e_index:
     :param e_suc_index:
@@ -169,48 +169,21 @@ def get_orientation(e_index, e_suc_index, f_index, f_suc_index, orientation, app
     :param approach: word, phrase
     :return: String corresponding to the case ['mono', 'swap', 'discR', 'discL']
     """
-    if approach == "word":
-        print f_index, f_suc_index, '||', e_index, e_suc_index
-        if monotone(f_index, f_suc_index, e_index, e_suc_index, orientation):
-            print 'mono'
-            return 'mono'
-        if swap(f_index, f_suc_index, e_index, e_suc_index, orientation):
-            print 'swap'
-            return 'swap'
-        if discontinuous(f_index, f_suc_index, e_index, e_suc_index, orientation):
-            if f_index < f_suc_index:
-                print 'discR'
-                return 'discR'
-            elif f_index > f_suc_index:
-                print 'discL'
-                return 'discL'
-    # if approach == "phrase":
-    #     for e_s in e_suc:
-    #         # find last words of current phrases and first words of successors
-    #         last_f = f.strip().split()[-1]
-    #         last_e = e.strip().split()[-1]
-    #         first_e_s = e_s.strip().split()[0]
-    #         first_f_s = f_s.strip().split()[0]
-    #         # find indexes of those first and last words
-    #         f_b = f_tokens.index(first_f_s)
-    #         f_a = f_tokens.index(last_f)
-    #         e_b = e_tokens.index(first_e_s)
-    #         e_a = e_tokens.index(last_e)
-    #         print f_index, f_b, '||', e_a, e_b
-    #         if monotone(f_index, f_b, e_a, e_b):
-    #             print "mono"
-    #             if f not in ms:
-    #                 ms[f] = {}
-    #                 if e in ms[f]:
-    #                     ms[f][e] += 1
-    #                 else:
-    #                     ms[f][e] = 1
-    #         if swap(f_a, f_b, e_a, e_b):
-    #             print "swap"
-    #             pass
-    #         if discontinuous(f_a, f_b, e_a, e_b):
-    #             print "dis"
-    #             pass
+    print f_index, f_suc_index, '||', e_index, e_suc_index
+    if monotone(f_index, f_suc_index, e_index, e_suc_index, orientation):
+        print 'mono'
+        return 'mono'
+    if swap(f_index, f_suc_index, e_index, e_suc_index, orientation):
+        print 'swap'
+        return 'swap'
+    if discontinuous(f_index, f_suc_index, e_index, e_suc_index, orientation):
+        if f_index < f_suc_index:
+            print 'discR'
+            return 'discR'
+        elif f_index > f_suc_index:
+            print 'discL'
+            return 'discL'
+
 
 
 def _store_o(dict, f, e):
@@ -267,6 +240,22 @@ def get_phrase_indexes(phrase, sentence_tokens):
     return start, end
 
 
+def find_e(e_f, e):
+    ret = None
+    min_ret_size = 10
+    for pair in e_f:
+        if pair[0] == e:
+            return e
+        else:
+            if e not in pair[0]:
+                continue
+            if e in pair[0]:
+                ret_size = len(pair[0])  # return shortest phrase, since aligned_phrases might contain word more often
+                if ret_size < min_ret_size:
+                    ret = pair[0]
+    return ret
+
+
 def word_based_orientation_extract(alignments, e_tokens, f_tokens, e_f, orientation):
     """ Updates the static variables containing the counts of the orientations by word based extraction
     :param alignments:
@@ -276,66 +265,53 @@ def word_based_orientation_extract(alignments, e_tokens, f_tokens, e_f, orientat
     :param orientation:
     """
     d = -1 if orientation == 'rl' else +1
-
-    for e_index, e in enumerate(e_tokens):
+    e_index = 0
+    while e_index < len(e_tokens):
+        e = e_tokens[e_index]
+        e = find_e(e_f, e)
         e_suc = find_single_successor(e_tokens, e_index, orientation)
         if orientation == 'rl' and e_index == 0:
+            e_index += len(e.split())
             continue
         if e_suc is None:  # last word
             break
         f = translate(e_f, e)
         if f is not None:
-            if ' ' in f:  # e was translated to more than one foreign words
-                f_split = f.strip().split()
-                for f_token in f_split:
-                    f_suc = find_single_successor(f_tokens, e_index, orientation)
-                    if f_suc is not None and e_suc is not None:
-                        print e, e_suc, f_token, f_suc
-
-                        f_index, f_suc_index = get_translation_indexes(e_index, e_index+d, alignments)
-                        print "indices: ", e_index, e_index+d, f_index, f_suc_index
-                        if len(f_suc_index) == 0:  # unaligned word #yolo
-                            print 'yolo'
-                            continue
-
-                        if len(f_index) > 1 or len(f_suc_index) > 1:
-                            if len(f_index) > 1 and len(f_suc_index) == 1:
-                                for f_indices in f_index:
-                                    o = get_orientation(e_index, e_index+d, f_indices, f_suc_index[0], orientation,
-                                                        "word")
-                                    store_orientation(o, e, f, orientation)
-                            if len(f_suc_index) > 1 and len(f_index) == 1:
-                                for f_suc_indices in f_suc_index:
-                                    o = get_orientation(e_index, e_index+d, f_index[0], f_suc_indices, orientation,
-                                                        "word")
-                                    store_orientation(o, e, f, orientation)
-                        else:
-                            o = get_orientation(e_index, e_index+d, f_index[0], f_suc_index[0], orientation, "word")
-                            store_orientation(o, e, f, orientation)
-            else:  # 1-1 case
-                f_suc = translate(e_f, e_suc)
-                if f_suc is not None:
-                    print e, e_suc, f, f_suc
-
-                    f_index, f_suc_index = get_translation_indexes(e_index, e_index+d, alignments)
-                    print "indices: ", e_index, e_index+d, f_index, f_suc_index
-                    if len(f_index) == 0 or len(f_suc_index) == 0:  # unaligned word #yolo
-                        print 'yolo'
-                        continue
-                    if len(f_index) > 1 or len(f_suc_index) > 1:
-                        if len(f_index) > 1 and len(f_suc_index) == 1:
-                            for f_indices in f_index:
-                                o = get_orientation(e_index, e_index+d, f_indices, f_suc_index[0], orientation, "word")
-                                store_orientation(o, e, f, orientation)
-                        if len(f_suc_index) > 1 and len(f_index) == 1:
-                            for f_suc_indices in f_suc_index:
-                                o = get_orientation(e_index, e_index+d, f_index[0], f_suc_indices, orientation, "word")
-                                store_orientation(o, e, f, orientation)
-                    else:
-                        o = get_orientation(e_index, e_index+d, f_index[0], f_suc_index[0], orientation, "word")
-                        store_orientation(o, e, f, orientation)
+            f_suc = translate(e_f, e_suc)
+            if f_suc is not None:
+                print e, e_suc, f, f_suc
+                f_index, f_suc_index = get_translation_indexes(e_index, e_index+d, alignments)
+                print "indices: ", e_index, e_index+d, f_index, f_suc_index
+                if len(f_index) == 0 or len(f_suc_index) == 0:  # unaligned word #yolo
+                    print 'yolo'
+                    e_index += len(e.split())
+                    continue
                 else:
-                    print 'no f translation \'{}\', \'{}\' '.format(e, e_suc)
+                    o = get_orientation(e_index, e_index+d, f_index[0], f_suc_index[0], orientation)
+                    store_orientation(o, e, f, orientation)
+            else:
+                print 'no f translation \'{}\', \'{}\' '.format(e, e_suc)
+        e_index += len(e.split())
+
+
+def phrase_based_orientation_extract(e_phrases, f_phrases, e_tokens, f_tokens, e_f, orientation):
+    d = -1 if orientation == 'rl' else +1  #TODO: 'rl'
+    for _e in e_phrases:
+        e = _e[0]
+        f = translate(e_f, e)
+        _, e_end = get_phrase_indexes(e, e_tokens)
+        _, f_end = get_phrase_indexes(f, f_tokens)
+
+        e_sucs = find_successors(e_tokens, e_phrases, e_end)
+        f_sucs = find_successors(f_tokens, f_phrases, f_end)
+
+        for e_suc in e_sucs:
+            for f_suc in f_sucs:
+                e_suc_start, _ = get_phrase_indexes(e_suc, e_tokens)
+                f_suc_start, _ = get_phrase_indexes(f_suc, f_tokens)
+
+                o = get_orientation(e_end, e_suc_start, f_end, f_suc_start, orientation)
+                store_orientation(o, e, f, orientation)
 
 
 def orientation_extraction(e_path, f_path, aligned_path, max_length):
@@ -349,29 +325,13 @@ def orientation_extraction(e_path, f_path, aligned_path, max_length):
             e_f, e_phrases, f_phrases = extract_phrases(e_tokens, f_tokens, alignments, max_length)
 
             # Word based
-            # word_based_orientation_extract(alignments, e_tokens, f_tokens, e_f, orientation='lr')
-            # word_based_orientation_extract(alignments, e_tokens, f_tokens, e_f, orientation='rl')
+            word_based_orientation_extract(alignments, e_tokens, f_tokens, e_f, orientation='lr')
+            word_based_orientation_extract(alignments, e_tokens, f_tokens, e_f, orientation='rl')
 
             # Phrase based
-            ## phrase_based_orientation_extract(alignments, e_tokens, f_tokens, e_f, orientation='lr')
+            ## phrase_based_orientation_extract(e_phrases, f_phrases, e_tokens, f_tokens, e_f, orientation='lr')
             ## phrase_based_orientation_extract(alignments, e_tokens, f_tokens, e_f, orientation='rl')
-            orientation = 'lr'
-            for _e in e_phrases:
-                e = _e[0]
-                f = translate(e_f, e)
-                _, e_end = get_phrase_indexes(e, e_tokens)
-                _, f_end = get_phrase_indexes(f, f_tokens)
 
-                e_sucs = find_successors(e_tokens, e_phrases, e_end)
-                f_sucs = find_successors(f_tokens, f_phrases, f_end)
-
-                for e_suc in e_sucs:
-                    for f_suc in f_sucs:
-                        e_suc_start, _ = get_phrase_indexes(e_suc, e_tokens)
-                        f_suc_start, _ = get_phrase_indexes(f_suc, f_tokens)
-
-                        o = get_orientation(e_end, e_suc_start, f_end, f_suc_start, orientation, "phrase")
-                        store_orientation(o, e, f, orientation)
 
             sample_size -= 1
             if sample_size == 0:
