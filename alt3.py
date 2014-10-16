@@ -134,28 +134,18 @@ def translate(aligned_phrases, word):
 
 
 def monotone(f_a, f_b, e_a, e_b, orientation):
-    if orientation == 'rl':
-        if f_a == f_b + 1 and e_a == e_b + 1:
+    if orientation == 'rl' and f_a == f_b + 1 and e_a == e_b + 1:
             return True
-    if orientation == 'lr':
-        if f_a + 1 == f_b and e_a + 1 == e_b:
+    if orientation == 'lr' and f_a + 1 == f_b and e_a + 1 == e_b:
             return True
     return False
 
 
 def swap(f_a, f_b, e_a, e_b, orientation):
-    if orientation == 'rl':
-        if f_a + 1 == f_b and e_a == e_b + 1:
+    if orientation == 'rl' and f_a + 1 == f_b and e_a == e_b + 1:
             return True
-    if orientation == 'lr':
-        if f_a == f_b + 1 and e_a + 1 == e_b:
+    if orientation == 'lr' and f_a == f_b + 1 and e_a + 1 == e_b:
             return True
-    return False
-
-
-def discontinuous(f_a, f_b, e_a, e_b, orientation):
-    if not monotone(f_a, f_b, e_a, e_b, orientation) and not swap(f_a, f_b, e_a, e_b, orientation):
-        return True
     return False
 
 
@@ -168,23 +158,22 @@ def get_orientation(e_index, e_suc_index, f_index, f_suc_index, orientation):
     :param orientation: rl, lr
     :return: String corresponding to the case ['mono', 'swap', 'discR', 'discL']
     """
+    if [e_index, e_suc_index, f_index, f_suc_index] == [0, 1, 0, 1] and orientation == 'rl':
+        pass
     if monotone(f_index, f_suc_index, e_index, e_suc_index, orientation):
         return 'mono'
     if swap(f_index, f_suc_index, e_index, e_suc_index, orientation):
         return 'swap'
-    if discontinuous(f_index, f_suc_index, e_index, e_suc_index, orientation):
-        # TODO this is wrong. Comments are from Katja's mail.
-        if f_index < f_suc_index:
-            # - they have disc. RIGHT reordering if e2 immediately follows e1 (on the target side);
-            # and on the source side f2 comes after f1 and there's a gap
-            return 'discR'
-        elif f_index > f_suc_index:
-            # they have discontinuous LEFT reordering if e2 immediately follows e1 (on the target side);
-            # and on the source side f2 comes before f1, and there is a gap between them
-            return 'discL'
-        else:
-            # TODO what to do here?
-            print 'this is why we get zeros in the final outputs'
+    # if discontinuous(f_index, f_suc_index, e_index, e_suc_index, orientation):
+    # Discontinuous since not swap and not mono, no need to call 3 functions, 2 of which have been already called.
+    if f_index < f_suc_index:  # TODO this is probably wrong? Comments are from Katja's mail.
+        # - they have disc. RIGHT reordering if e2 immediately follows e1 (on the target side);
+        # and on the source side f2 comes after f1 and there's a gap
+        return 'discR'
+    else:
+        # they have discontinuous LEFT reordering if e2 immediately follows e1 (on the target side);
+        # and on the source side f2 comes before f1, and there is a gap between them
+        return 'discL'
 
 
 def store_orientation(o, e, f, orientation):
