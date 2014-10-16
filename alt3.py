@@ -168,19 +168,14 @@ def get_orientation(e_index, e_suc_index, f_index, f_suc_index, orientation):
     :param orientation: rl, lr
     :return: String corresponding to the case ['mono', 'swap', 'discR', 'discL']
     """
-    print e_index, e_suc_index, '||', f_index, f_suc_index
     if monotone(f_index, f_suc_index, e_index, e_suc_index, orientation):
-        print 'mono'
         return 'mono'
     if swap(f_index, f_suc_index, e_index, e_suc_index, orientation):
-        print 'swap'
         return 'swap'
     if discontinuous(f_index, f_suc_index, e_index, e_suc_index, orientation):
         if f_index < f_suc_index:
-            print 'discR'
             return 'discR'
         elif f_index > f_suc_index:
-            print 'discL'
             return 'discL'
 
 
@@ -288,12 +283,9 @@ def word_based_orientation_extract(e_tokens, f_tokens, e_f, orientation):
         if f is not None:
             f_suc = translate(e_f, e_suc)
             if f_suc is not None:
-                print e, "!", e_suc, f, "!", f_suc
                 f_index, _ = get_phrase_indexes(f, f_tokens)
                 f_suc_index, _ = get_phrase_indexes(f_suc, f_tokens)
-                print "indices: ", e_index, e_index+direction, f_index, f_suc_index
-                if f_index is None or f_suc_index is None:  # unaligned word #yolo
-                    print 'yolo'
+                if f_index is None or f_suc_index is None:  # unaligned word
                     e_index += direction * len(e.split())
                     continue
                 else:
@@ -309,7 +301,6 @@ def phrase_based_orientation_extract(e_phrases, f_phrases, e_tokens, f_tokens, e
     for _e in e_phrases:
         e = _e[0]
         f = translate(e_f, e)
-        print e, '-', f
 
         _, e_end = get_phrase_indexes(e, e_tokens)
         _, f_end = get_phrase_indexes(f, f_tokens)
@@ -328,17 +319,50 @@ def phrase_based_orientation_extract(e_phrases, f_phrases, e_tokens, f_tokens, e
             store_orientation(o, e, f, orientation)
 
 
-def generate_output(phrase_pairs):
+def get_sum_of_orientation(dict):
+    sum = 0
+    for k in dict:
+        sum += k.values()[0]
+    return sum
 
-    for phrase_pair in phrase_pairs:
-        # normalze all orientations
-        pass
+
+def get_count_of_orientation(dict, pair):
+    for d in dict.iteritems():
+        adf =d[0]
+        asdf =d[1].keys()[0]
+        if d[0] == pair[0] and d[1].keys()[0] == pair[1]:
+            return d[1].values()[0]
+    return 0
+
+
+def generate_output(phrase_pairs_):
+    phrase_pairs = phrase_pairs_  #TODO: set(phrase_pairs_)
+    b = m_counter_rl
+    a = m_counter_rl.values()
+    m_rl_count = get_sum_of_orientation(m_counter_rl.values()) + .0
+    dl_rl_count = get_sum_of_orientation(dl_counter_rl.values()) + .0
+    dr_rl_count = get_sum_of_orientation(dr_counter_rl.values()) + .0
+    s_rl_count = get_sum_of_orientation(s_counter_rl.values()) + .0
+    m_lr_count = get_sum_of_orientation(m_counter_lr.values()) + .0
+    dl_lr_count = get_sum_of_orientation(dl_counter_lr.values()) + .0
+    dr_lr_count = get_sum_of_orientation(dr_counter_lr.values()) + .0
+    s_lr_count = get_sum_of_orientation(s_counter_lr.values()) + .0
+    for pair in phrase_pairs:
+        p1 = float(get_count_of_orientation(m_counter_rl, pair)) / m_rl_count if m_rl_count > 0 else 0
+        p2 = float(get_count_of_orientation(dl_counter_rl, pair)) / dl_rl_count if dl_rl_count > 0 else 0
+        p3 = float(get_count_of_orientation(dr_counter_rl, pair)) / dr_rl_count if dr_rl_count > 0 else 0
+        p4 = float(get_count_of_orientation(s_counter_rl, pair)) / s_rl_count if s_rl_count > 0 else 0
+        p5 = float(get_count_of_orientation(m_counter_lr, pair)) / m_lr_count if m_lr_count > 0 else 0
+        p6 = float(get_count_of_orientation(dl_counter_lr, pair)) / dl_lr_count if dl_lr_count > 0 else 0
+        p7 = float(get_count_of_orientation(dr_counter_lr, pair)) / dr_lr_count if dr_lr_count > 0 else 0
+        p8 = float(get_count_of_orientation(s_counter_lr, pair)) / s_lr_count if s_lr_count > 0 else 0
+        print pair[1], "|||", pair[0], "|||", p1, p2, p3, p4, p5, p6, p7, p8
 
 
 def orientation_extraction(e_path, f_path, aligned_path, max_length):
-    phrase_pairs = set()
+    phrase_pairs = []
     with open(e_path, 'r') as e_f, open(f_path, 'r') as f_f, open(aligned_path, 'r') as aligned_f:
-        sample_size = 100
+        sample_size = 200
         for e_str, f_str, align_str in zip(e_f, f_f, aligned_f):
             e_tokens = e_str.strip().split()
             f_tokens = f_str.strip().split()
@@ -346,7 +370,7 @@ def orientation_extraction(e_path, f_path, aligned_path, max_length):
             alignments = parse_alignments(align_str)
             e_f, e_phrases, f_phrases = extract_phrases(e_tokens, f_tokens, alignments, max_length)
             # update phrase pairs
-            phrase_pairs.add()
+            phrase_pairs.extend(e_f)
 
             # Word based
             word_based_orientation_extract(e_tokens, f_tokens, e_f, orientation='lr')
@@ -355,15 +379,14 @@ def orientation_extraction(e_path, f_path, aligned_path, max_length):
             phrase_based_orientation_extract(e_phrases, f_phrases, e_tokens, f_tokens, e_f, orientation='lr')
             phrase_based_orientation_extract(e_phrases, f_phrases, e_tokens, f_tokens, e_f, orientation='rl')
 
-            generate_output(phrase_pairs)
-
             sample_size -= 1
             if sample_size == 0:
                 break
+    generate_output(phrase_pairs)
     print 'Phrases and orientations extracted'
 
 # static vars
-m_counter_rl = Counter()
+m_counter_rl = dict()
 dl_counter_rl = Counter()
 dr_counter_rl = Counter()
 s_counter_rl = Counter()
