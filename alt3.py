@@ -173,9 +173,14 @@ def get_orientation(e_index, e_suc_index, f_index, f_suc_index, orientation):
     if swap(f_index, f_suc_index, e_index, e_suc_index, orientation):
         return 'swap'
     if discontinuous(f_index, f_suc_index, e_index, e_suc_index, orientation):
+        # TODO this is wrong. Comments are from Katja's mail.
         if f_index < f_suc_index:
+            # - they have disc. RIGHT reordering if e2 immediately follows e1 (on the target side);
+            # and on the source side f2 comes after f1 and there's a gap
             return 'discR'
         elif f_index > f_suc_index:
+            # they have discontinuous LEFT reordering if e2 immediately follows e1 (on the target side);
+            # and on the source side f2 comes before f1, and there is a gap between them
             return 'discL'
         else:
             # TODO what to do here?
