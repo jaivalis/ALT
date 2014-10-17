@@ -47,8 +47,8 @@ def get_phrase_alignment(e_start, e_end, f_start, f_end, alignments, e_tokens, f
 
 def extract_phrases(e_tokens, f_tokens, alignments, max_length):
     aligned_phrases = []
-    e_phrases = []
-    f_phrases = []
+    e_phrases = set()
+    f_phrases = set()
 
     for e_start in range(0, len(e_tokens)):
         for e_end in range(e_start, len(e_tokens)):
@@ -67,12 +67,11 @@ def extract_phrases(e_tokens, f_tokens, alignments, max_length):
             if tmp is None:
                 continue
             phrase_alignment = tmp[0]
-            e_phrase = tmp[1]
-            f_phrase = tmp[2]
 
             aligned_phrases = aligned_phrases + phrase_alignment
-            e_phrases.append(e_phrase)
-            f_phrases.append(f_phrase)
+    for pp in aligned_phrases:
+        e_phrases.add(pp[0])
+        f_phrases.add(pp[1])
     return aligned_phrases, e_phrases, f_phrases
 ###### alt1.py end
 
@@ -85,11 +84,10 @@ def find_successors(e_tokens, phrases, end_index):
     """
     successor_phrases = []
     if end_index != len(e_tokens) - 1:  # not end of sentence
-        start_word = e_tokens[end_index+1]  # TODO this might go out of bounds
-        for _phr in phrases:
-            phr = _phr[0]
-            if phr.startswith(start_word):
-            # TODO what happens in case we have more occurences of the same word in a sentence
+        start_word = e_tokens[end_index + 1]  # TODO this might go out of bounds
+        for phr in phrases:
+            if phr.startswith(start_word + ' '):
+                # TODO what happens in case we have more occurences of the same word in a sentence
                 successor_phrases.append(phr)
     return successor_phrases
 
@@ -104,12 +102,12 @@ def find_single_successor(e_f, sentence_tokens, word_ind, orientation):
         if word_ind == len(sentence_tokens) - 1:  # end of sentence
             return None
         else:
-            return get_phrase_containing(e_f, sentence_tokens[word_ind + 1])
+            return get_phrase_containing(e_f, sentence_tokens[word_ind + 1], sentence_tokens[word_ind])
     else:
         if word_ind == 0:  # start of sentence
             return None
         else:
-            return get_phrase_containing(e_f, sentence_tokens[word_ind - 1])
+            return get_phrase_containing(e_f, sentence_tokens[word_ind - 1], sentence_tokens[word_ind])
 
 
 def translate(aligned_phrases, word):
@@ -134,18 +132,16 @@ def translate(aligned_phrases, word):
 
 
 def monotone(f_a, f_b, e_a, e_b, orientation):
-    if orientation == 'rl' and f_a == f_b + 1 and e_a == e_b + 1:
-            return True
-    if orientation == 'lr' and f_a + 1 == f_b and e_a + 1 == e_b:
-            return True
+    if f_a + 1 == f_b and e_a + 1 == e_b:
+        return True
     return False
 
 
 def swap(f_a, f_b, e_a, e_b, orientation):
     if orientation == 'rl' and f_a + 1 == f_b and e_a == e_b + 1:
-            return True
+        return True
     if orientation == 'lr' and f_a == f_b + 1 and e_a + 1 == e_b:
-            return True
+        return True
     return False
 
 
@@ -170,14 +166,16 @@ def get_orientation(e_index, e_suc_index, f_index, f_suc_index, orientation):
         # - they have disc. RIGHT reordering if e2 immediately follows e1 (on the target side);
         # and on the source side f2 comes after f1 and there's a gap
         return 'discR'
-    else:
+    elif f_index > f_suc_index:
         # they have discontinuous LEFT reordering if e2 immediately follows e1 (on the target side);
         # and on the source side f2 comes before f1, and there is a gap between them
         return 'discL'
+    else:
+        pass
 
 
 def store_orientation(o, e, f, orientation):
-    assert (o in ['mono', 'swap', 'discR', 'discL'])  # TODO this is why we get zeros
+    #assert (o in ['mono', 'swap', 'discR', 'discL'])  # TODO this is why we get zeros
     phrase_str = e + " ||| " + f
     if orientation == 'lr':
         if o == 'mono':
@@ -231,20 +229,19 @@ def get_phrase_indexes(phrase, sentence_tokens):
     return start, end
 
 
-def get_phrase_containing(e_f, e):
+def get_phrase_containing(e_f, containing, not_containing=None):
     ret = None
     min_ret_size = sys.maxint
     for pair in e_f:
-        if pair[0] == e:
-            return e
+        if pair[0] == containing:
+            return containing
         else:
-            if e not in pair[0]:
-                continue
-            if e in pair[0]:
-                ret_size = len(pair[0])  # return shortest phrase, since aligned_phrases might contain word more often
-                if ret_size < min_ret_size:
-                    min_ret_size = ret_size
-                    ret = pair[0]
+            if (not_containing is None) or (not_containing not in pair[0]):
+                if containing in pair[0]:
+                    ret_size = len(pair[0])  # return shortest phrase, since aligned_phrases might contain word more often
+                    if ret_size < min_ret_size:
+                        min_ret_size = ret_size
+                        ret = pair[0]
     return ret
 
 
@@ -281,7 +278,9 @@ def word_based_orientation_extract(e_tokens, f_tokens, e_f, orientation):
             if f_suc is not None:
                 f_index, _ = get_phrase_indexes(f, f_tokens)
                 f_suc_index, _ = get_phrase_indexes(f_suc, f_tokens)
-                if f_index is None or f_suc_index is None:  # unaligned word
+                if f_index == f_suc_index:
+                    pass
+                if f_index is None or f_suc_index is None or f_index == f_suc_index:  # unaligned word
                     e_index += direction * len(e.split())
                     continue
                 else:
@@ -293,8 +292,7 @@ def word_based_orientation_extract(e_tokens, f_tokens, e_f, orientation):
 
 
 def phrase_based_orientation_extract(e_phrases, f_phrases, e_tokens, f_tokens, e_f, orientation):
-    for _e in e_phrases:
-        e = _e[0]
+    for e in e_phrases:
         f = translate(e_f, e)
 
         _, e_end = get_phrase_indexes(e, e_tokens)
@@ -325,16 +323,15 @@ def generate_output(phrase_pairs, outfile=None):
         dr_lr_count = sum(dr_counter_lr.values()) + .0
         s_lr_count = sum(s_counter_lr.values()) + .0
         for pp in phrase_pairs:
-            p1 = float(get_count_of_orientation(m_counter_rl, pp)) / m_rl_count if m_rl_count > 0 else 0
-            p2 = float(get_count_of_orientation(dl_counter_rl, pp)) / dl_rl_count if dl_rl_count > 0 else 0
-            p3 = float(get_count_of_orientation(dr_counter_rl, pp)) / dr_rl_count if dr_rl_count > 0 else 0
-            p4 = float(get_count_of_orientation(s_counter_rl, pp)) / s_rl_count if s_rl_count > 0 else 0
-            p5 = float(get_count_of_orientation(m_counter_lr, pp)) / m_lr_count if m_lr_count > 0 else 0
-            p6 = float(get_count_of_orientation(dl_counter_lr, pp)) / dl_lr_count if dl_lr_count > 0 else 0
-            p7 = float(get_count_of_orientation(dr_counter_lr, pp)) / dr_lr_count if dr_lr_count > 0 else 0
-            p8 = float(get_count_of_orientation(s_counter_lr, pp)) / s_lr_count if s_lr_count > 0 else 0
-
-            string = '{0} ||| {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8},'.format(pp, p1, p2, p3, p4, p5, p6, p7, p8)
+            p1 = float(get_count_of_orientation(m_counter_rl, pp)) / m_rl_count if m_rl_count > 0 else 0.0
+            p2 = float(get_count_of_orientation(dl_counter_rl, pp)) / dl_rl_count if dl_rl_count > 0 else 0.0
+            p3 = float(get_count_of_orientation(dr_counter_rl, pp)) / dr_rl_count if dr_rl_count > 0 else 0.0
+            p4 = float(get_count_of_orientation(s_counter_rl, pp)) / s_rl_count if s_rl_count > 0 else 0.0
+            p5 = float(get_count_of_orientation(m_counter_lr, pp)) / m_lr_count if m_lr_count > 0 else 0.0
+            p6 = float(get_count_of_orientation(dl_counter_lr, pp)) / dl_lr_count if dl_lr_count > 0 else 0.0
+            p7 = float(get_count_of_orientation(dr_counter_lr, pp)) / dr_lr_count if dr_lr_count > 0 else 0.0
+            p8 = float(get_count_of_orientation(s_counter_lr, pp)) / s_lr_count if s_lr_count > 0 else 0.0
+            string = '{0} ||| {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}'.format(pp, p1, p2, p3, p4, p5, p6, p7, p8)
             out.write(string + '\n')
     finally:
         if outfile is not None:
@@ -360,7 +357,7 @@ def orientation_extraction(e_path, f_path, aligned_path, max_length):
             # Store phrase pairs
             [phrase_pairs.add(" ||| ".join(pp)) for pp in e_f]
 
-             # Word based
+            # Word based
             word_based_orientation_extract(e_tokens, f_tokens, e_f, orientation='lr')
             word_based_orientation_extract(e_tokens, f_tokens, e_f, orientation='rl')
             # Phrase based
